@@ -16,6 +16,7 @@ import static org.batfish.datamodel.acl.AclLineMatchExprs.or;
 import static org.batfish.datamodel.routing_policy.Common.generateGenerationPolicy;
 import static org.batfish.datamodel.routing_policy.Common.matchDefaultRoute;
 import static org.batfish.datamodel.routing_policy.Common.suppressSummarizedPrefixes;
+import static org.batfish.representation.cisco_nxos.CiscoNxosInterfaceType.ETHERNET;
 import static org.batfish.representation.cisco_nxos.CiscoNxosInterfaceType.PORT_CHANNEL;
 import static org.batfish.representation.cisco_nxos.CiscoNxosStructureUsage.CLASS_MAP_CP_MATCH_ACCESS_GROUP;
 import static org.batfish.representation.cisco_nxos.Conversions.getVrfForL3Vni;
@@ -1671,6 +1672,16 @@ public final class CiscoNxosConfiguration extends VendorConfiguration {
     }
   }
 
+  private Optional<InterfaceRuntimeData> getRuntimeData(Interface iface) {
+    if (iface.getType() != ETHERNET || iface.getParentInterface() != null) {
+      // Only use runtime data for physical Ethernet interfaces.
+      return Optional.empty();
+    }
+    return Optional.ofNullable(_hostname)
+        .map(h -> _runtimeData.getRuntimeData(h))
+        .map(d -> d.getInterface(iface.getName()));
+  }
+
   private @Nonnull org.batfish.datamodel.Interface toInterface(Interface iface) {
     String ifaceName = iface.getName();
     org.batfish.datamodel.Interface.Builder newIfaceBuilder =
@@ -1784,10 +1795,7 @@ public final class CiscoNxosConfiguration extends VendorConfiguration {
     CiscoNxosInterfaceType type = iface.getType();
     newIfaceBuilder.setType(toInterfaceType(type, parent != null));
 
-    Optional<InterfaceRuntimeData> runtimeData =
-        Optional.ofNullable(_hostname)
-            .map(h -> _runtimeData.getRuntimeData(h))
-            .map(d -> d.getInterface(ifaceName));
+    Optional<InterfaceRuntimeData> runtimeData = getRuntimeData(iface);
     Double runtimeBandwidth = runtimeData.map(InterfaceRuntimeData::getBandwidth).orElse(null);
     Double runtimeSpeed = runtimeData.map(InterfaceRuntimeData::getSpeed).orElse(null);
 
