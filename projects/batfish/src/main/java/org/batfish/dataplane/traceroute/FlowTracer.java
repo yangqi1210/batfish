@@ -206,7 +206,7 @@ class FlowTracer {
   private final Configuration _currentConfig;
   private final @Nullable String _ingressInterface;
   private final Node _currentNode;
-  private final Consumer<TraceAndReverseFlow> _flowTraces;
+  private final TraceRecorder _traceRecorder;
   private final @Nullable NodeInterfacePair _lastHopNodeAndOutgoingInterface;
   private final Set<FirewallSessionTraceInfo> _newSessions;
   private final Flow _originalFlow;
@@ -230,14 +230,14 @@ class FlowTracer {
       String node,
       @Nullable String ingressInterface,
       Flow originalFlow,
-      Consumer<TraceAndReverseFlow> flowTraces) {
+      TraceRecorder traceRecorder) {
     Configuration currentConfig = tracerouteContext.getConfigurations().get(node);
     return new FlowTracer(
         tracerouteContext,
         currentConfig,
         ingressInterface,
         new Node(node),
-        flowTraces,
+        traceRecorder,
         null,
         new HashSet<>(),
         originalFlow,
@@ -267,7 +267,7 @@ class FlowTracer {
         newConfig,
         newIngressInterface,
         new Node(newConfig.getHostname()),
-        _flowTraces,
+        _traceRecorder,
         lastHopNodeAndOutgoingInterface,
         new HashSet<>(_newSessions),
         _originalFlow,
@@ -300,7 +300,7 @@ class FlowTracer {
       Configuration currentConfig,
       @Nullable String ingressInterface,
       Node currentNode,
-      Consumer<TraceAndReverseFlow> flowTraces,
+      TraceRecorder traceRecorder,
       @Nullable NodeInterfacePair lastHopNodeAndOutgoingInterface,
       Set<FirewallSessionTraceInfo> newSessions,
       Flow originalFlow,
@@ -317,7 +317,7 @@ class FlowTracer {
     _currentConfig = currentConfig;
     _ingressInterface = ingressInterface;
     _currentNode = currentNode;
-    _flowTraces = flowTraces;
+    _traceRecorder = traceRecorder;
     _lastHopNodeAndOutgoingInterface = lastHopNodeAndOutgoingInterface;
     _newSessions = newSessions;
     _originalFlow = originalFlow;
@@ -349,7 +349,7 @@ class FlowTracer {
         newConfig,
         newIngressInterface,
         new Node(newConfig.getHostname()),
-        _flowTraces,
+        _traceRecorder,
         exitIface,
         new HashSet<>(_newSessions),
         // the original flow of the next hop is the final (i.e. current) flow of this hop
@@ -952,7 +952,7 @@ class FlowTracer {
         "The last routing step should should have the action as NULL_ROUTED");
     _hops.add(new Hop(_currentNode, _steps));
     Trace trace = new Trace(FlowDisposition.NULL_ROUTED, _hops);
-    _flowTraces.accept(new TraceAndReverseFlow(trace, null, _newSessions));
+    _traceRecorder.recordTrace(new TraceAndReverseFlow(trace, null, _newSessions));
   }
 
   /** add a step for NO_ROUTE from source to output interface */
@@ -964,7 +964,7 @@ class FlowTracer {
     _steps.add(routingStepBuilder.build());
     _hops.add(new Hop(_currentNode, _steps));
     Trace trace = new Trace(FlowDisposition.NO_ROUTE, _hops);
-    _flowTraces.accept(new TraceAndReverseFlow(trace, null, _newSessions));
+    _traceRecorder.recordTrace(new TraceAndReverseFlow(trace, null, _newSessions));
   }
 
   /**
@@ -1169,14 +1169,14 @@ class FlowTracer {
     _hops.add(new Hop(_currentNode, _steps));
     Trace trace = new Trace(FlowDisposition.ACCEPTED, _hops);
     Flow returnFlow = returnFlow(_currentFlow, _currentNode.getName(), _vrfName, null);
-    _flowTraces.accept(new TraceAndReverseFlow(trace, returnFlow, _newSessions));
+    _traceRecorder.recordTrace(new TraceAndReverseFlow(trace, returnFlow, _newSessions));
   }
 
   private void buildLoopTrace() {
     _steps.add(LoopStep.INSTANCE);
     _hops.add(new Hop(_currentNode, _steps));
     Trace trace = new Trace(FlowDisposition.LOOP, _hops);
-    _flowTraces.accept(new TraceAndReverseFlow(trace, null, _newSessions));
+    _traceRecorder.recordTrace(new TraceAndReverseFlow(trace, null, _newSessions));
   }
 
   /**
@@ -1223,7 +1223,7 @@ class FlowTracer {
   void buildDeniedTrace(FlowDisposition disposition) {
     _hops.add(new Hop(_currentNode, _steps));
     Trace trace = new Trace(disposition, _hops);
-    _flowTraces.accept(new TraceAndReverseFlow(trace, null, _newSessions));
+    _traceRecorder.recordTrace(new TraceAndReverseFlow(trace, null, _newSessions));
   }
 
   /**
@@ -1245,7 +1245,7 @@ class FlowTracer {
             : null;
 
     Trace trace = new Trace(disposition, _hops);
-    _flowTraces.accept(new TraceAndReverseFlow(trace, returnFlow, _newSessions));
+    _traceRecorder.recordTrace(new TraceAndReverseFlow(trace, returnFlow, _newSessions));
   }
 
   @VisibleForTesting
