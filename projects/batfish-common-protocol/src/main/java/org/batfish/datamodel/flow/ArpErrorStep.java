@@ -128,4 +128,9 @@ public final class ArpErrorStep extends Step<ArpErrorStepDetail> {
   private ArpErrorStep(ArpErrorStepDetail detail, StepAction action) {
     super(detail, action);
   }
+
+  @Override
+  public <T> T accept(StepVisitor<T> visitor) {
+    return visitor.visitArpErrorStep(this);
+  }
 }

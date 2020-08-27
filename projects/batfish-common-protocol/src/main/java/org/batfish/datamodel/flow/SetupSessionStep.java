@@ -18,6 +18,11 @@ import org.batfish.datamodel.flow.SetupSessionStep.SetupSessionStepDetail;
 @JsonTypeName("SetupSession")
 public final class SetupSessionStep extends Step<SetupSessionStepDetail> {
 
+  @Override
+  public <T> T accept(StepVisitor<T> visitor) {
+    return visitor.visitSetupSessionStep(this);
+  }
+
   public static final class SetupSessionStepDetail {
     private static final String PROP_INCOMING_INTERFACES = "incomingInterfaces";
     private static final String PROP_SESSION_ACTION = "sessionAction";

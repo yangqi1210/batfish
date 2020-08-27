@@ -117,4 +117,9 @@ public class FilterStep extends Step<FilterStepDetail> {
   public FilterStep(FilterStepDetail detail, StepAction action) {
     super(detail, action);
   }
+
+  @Override
+  public <T> T accept(StepVisitor<T> visitor) {
+    return visitor.visitFilterStep(this);
+  }
 }

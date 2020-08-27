@@ -141,6 +141,11 @@ public final class RoutingStep extends Step<RoutingStepDetail> {
     super(detail, action);
   }
 
+  @Override
+  public <T> T accept(StepVisitor<T> visitor) {
+    return visitor.visitRoutingStep(this);
+  }
+
   public static Builder builder() {
     return new Builder();
   }

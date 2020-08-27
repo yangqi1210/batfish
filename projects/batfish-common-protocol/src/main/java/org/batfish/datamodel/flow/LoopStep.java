@@ -17,6 +17,11 @@ public final class LoopStep extends Step<LoopStepDetail> {
 
   private static final LoopStepDetail LOOP_STEP_DETAIL = new LoopStepDetail();
 
+  @Override
+  public <T> T accept(StepVisitor<T> visitor) {
+    return visitor.visitLoopStep(this);
+  }
+
   static final class LoopStepDetail {
     private LoopStepDetail() {}
   }

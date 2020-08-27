@@ -127,4 +127,9 @@ public final class DeliveredStep extends Step<DeliveredStepDetail> {
   private DeliveredStep(DeliveredStepDetail detail, StepAction action) {
     super(detail, action);
   }
+
+  @Override
+  public <T> T accept(StepVisitor<T> visitor) {
+    return visitor.visitDeliveredStep(this);
+  }
 }

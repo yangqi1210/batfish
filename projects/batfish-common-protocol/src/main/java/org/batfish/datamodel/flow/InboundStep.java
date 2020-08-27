@@ -45,6 +45,11 @@ public final class InboundStep extends Step<InboundStepDetail> {
     super(detail, action);
   }
 
+  @Override
+  public <T> T accept(StepVisitor<T> visitor) {
+    return visitor.visitInboundStep(this);
+  }
+
   @JsonCreator
   private static InboundStep jsonCreator(
       @Nullable @JsonProperty(PROP_DETAIL) InboundStepDetail detail,

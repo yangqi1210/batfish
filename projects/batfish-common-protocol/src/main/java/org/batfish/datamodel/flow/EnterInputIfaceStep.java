@@ -93,6 +93,11 @@ public final class EnterInputIfaceStep extends Step<EnterInputIfaceStepDetail> {
     super(detail, action);
   }
 
+  @Override
+  public <T> T accept(StepVisitor<T> visitor) {
+    return visitor.visitEnterInputIfaceStep(this);
+  }
+
   @JsonCreator
   private static EnterInputIfaceStep jsonCreator(
       @Nullable @JsonProperty(PROP_DETAIL) EnterInputIfaceStepDetail detail,

@@ -51,4 +51,6 @@ public abstract class Step<D> {
   public final StepAction getAction() {
     return _action;
   }
+
+  public abstract <T> T accept(StepVisitor<T> visitor);
 }

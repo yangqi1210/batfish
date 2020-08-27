@@ -19,6 +19,11 @@ import org.batfish.datamodel.flow.MatchSessionStep.MatchSessionStepDetail;
 @JsonTypeName("MatchSession")
 public class MatchSessionStep extends Step<MatchSessionStepDetail> {
 
+  @Override
+  public <T> T accept(StepVisitor<T> visitor) {
+    return visitor.visitMatchSessionStep(this);
+  }
+
   public static final class MatchSessionStepDetail {
     private static final String PROP_INCOMING_INTERFACES = "incomingInterfaces";
     private static final String PROP_SESSION_ACTION = "sessionAction";

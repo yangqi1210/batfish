@@ -96,6 +96,11 @@ public final class TransformationStep extends Step<TransformationStepDetail> {
   }
 
   @Override
+  public <T> T accept(StepVisitor<T> visitor) {
+    return visitor.visitTransformationStep(this);
+  }
+
+  @Override
   public boolean equals(Object o) {
     if (o == this) {
       return true;

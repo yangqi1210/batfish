@@ -18,6 +18,11 @@ public class PolicyStep extends Step<PolicyStepDetail> {
     super(detail, action);
   }
 
+  @Override
+  public <T> T accept(StepVisitor<T> visitor) {
+    return visitor.visitPolicyStep(this);
+  }
+
   public static final class PolicyStepDetail {
     private static final String PROP_POLICY = "policy";
     @Nonnull private final String _policy;

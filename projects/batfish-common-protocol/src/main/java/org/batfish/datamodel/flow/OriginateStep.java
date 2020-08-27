@@ -71,6 +71,11 @@ public final class OriginateStep extends Step<OriginateStepDetail> {
     super(detail, action);
   }
 
+  @Override
+  public <T> T accept(StepVisitor<T> visitor) {
+    return visitor.visitOriginateStep(this);
+  }
+
   @JsonCreator
   private static OriginateStep jsonCreator(
       @Nullable @JsonProperty(PROP_DETAIL) OriginateStepDetail detail,

@@ -129,4 +129,9 @@ public final class ExitOutputIfaceStep extends Step<ExitOutputIfaceStepDetail> {
   private ExitOutputIfaceStep(ExitOutputIfaceStepDetail detail, StepAction action) {
     super(detail, action);
   }
+
+  @Override
+  public <T> T accept(StepVisitor<T> visitor) {
+    return visitor.visitExitOutputIfaceStep(this);
+  }
 }
