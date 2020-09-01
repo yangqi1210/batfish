@@ -405,6 +405,9 @@ class FlowTracer {
 
     Hop hop = new Hop(_currentNode, _steps);
     _hops.add(hop);
+    if (_traceRecorder.tryRecordPartialTrace(_hops)) {
+      return;
+    }
 
     NodeInterfacePair exitIface = NodeInterfacePair.of(_currentNode.getName(), outgoingInterface);
     interfacesThatReplyToArp.forEach(
@@ -928,7 +931,12 @@ class FlowTracer {
                         FlowDisposition.EXITS_NETWORK);
                     return null;
                   }
-                  _hops.add(new Hop(new Node(currentNodeName), _steps));
+
+                  Hop hop = new Hop(new Node(currentNodeName), _steps);
+                  _hops.add(hop);
+                  if (_traceRecorder.tryRecordPartialTrace(_hops)) {
+                    return null;
+                  }
 
                   // Forward to neighbor.
                   forkTracerFollowEdge(
