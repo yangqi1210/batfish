@@ -23,12 +23,16 @@ public interface TransformationStep {
 
   <T> T accept(TransformationStepVisitor<T> visitor);
 
-  static AssignIpAddressFromPool assignDestinationIp(Ip poolStart) {
-    return new AssignIpAddressFromPool(DEST_NAT, DESTINATION, poolStart, poolStart);
+  static AssignIpAddressFromPool assignDestinationIp(Ip ip) {
+    return new AssignIpAddressFromPool(DEST_NAT, DESTINATION, ip, ip);
   }
 
   static AssignIpAddressFromPool assignDestinationIp(Ip poolStart, Ip poolEnd) {
     return new AssignIpAddressFromPool(DEST_NAT, DESTINATION, poolStart, poolEnd);
+  }
+
+  static AssignIpAddressFromPool assignSourceIp(Ip ip) {
+    return new AssignIpAddressFromPool(SOURCE_NAT, SOURCE, ip, ip);
   }
 
   static AssignIpAddressFromPool assignSourceIp(Ip poolStart, Ip poolEnd) {
@@ -43,8 +47,16 @@ public interface TransformationStep {
     return new ShiftIpAddressIntoSubnet(SOURCE_NAT, SOURCE, subnet);
   }
 
+  static AssignPortFromPool assignSourcePort(int port) {
+    return new AssignPortFromPool(SOURCE_NAT, PortField.SOURCE, port, port);
+  }
+
   static AssignPortFromPool assignSourcePort(int poolStart, int poolEnd) {
     return new AssignPortFromPool(SOURCE_NAT, PortField.SOURCE, poolStart, poolEnd);
+  }
+
+  static AssignPortFromPool assignDestinationPort(int port) {
+    return new AssignPortFromPool(DEST_NAT, PortField.DESTINATION, port, port);
   }
 
   static AssignPortFromPool assignDestinationPort(int poolStart, int poolEnd) {

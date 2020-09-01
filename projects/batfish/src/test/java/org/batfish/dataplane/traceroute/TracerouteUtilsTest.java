@@ -8,6 +8,7 @@ import static org.batfish.dataplane.traceroute.FlowTracer.matchSessionReturnFlow
 import static org.batfish.dataplane.traceroute.TracerouteUtils.buildSessionsByIngressInterface;
 import static org.batfish.dataplane.traceroute.TracerouteUtils.buildSessionsByOriginatingVrf;
 import static org.batfish.dataplane.traceroute.TracerouteUtils.getTcpFlagsForReverse;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -22,6 +23,8 @@ import com.google.common.collect.Multimap;
 import java.util.Map;
 import java.util.Set;
 import org.batfish.datamodel.Flow;
+import org.batfish.datamodel.FlowDiff;
+import org.batfish.datamodel.FlowDiffUtils;
 import org.batfish.datamodel.Ip;
 import org.batfish.datamodel.IpProtocol;
 import org.batfish.datamodel.TcpFlags;
@@ -197,6 +200,59 @@ public final class TracerouteUtilsTest {
                     assignDestinationPort(srcPort1, srcPort1)),
                 null,
                 null)));
+  }
+
+  /**
+   * Test that {@link TracerouteUtils#sessionTransformation} is consistent with {@link
+   * org.batfish.datamodel.FlowDiffUtils#buildSessionTransformation(Set)}.
+   *
+   * <p>TODO consider standardizing on {@link
+   * org.batfish.datamodel.FlowDiffUtils#buildSessionTransformation(Set)}.
+   */
+  @Test
+  public void testSessionTransformationFlowDiffs() {
+    Ip srcIp1 = Ip.parse("1.1.1.1");
+    Ip dstIp1 = Ip.parse("2.2.2.2");
+    int srcPort1 = 10001;
+    int dstPort1 = 10002;
+    Ip srcIp2 = Ip.parse("3.3.3.3");
+    Ip dstIp2 = Ip.parse("4.4.4.4");
+    int srcPort2 = 10003;
+    int dstPort2 = 10004;
+
+    Flow inputFlow =
+        Flow.builder()
+            .setIngressNode("inNode")
+            .setIngressInterface("inInterf")
+            .setDstIp(dstIp1)
+            .setSrcIp(srcIp1)
+            .setDstPort(dstPort1)
+            .setSrcPort(srcPort1)
+            .setIpProtocol(IpProtocol.TCP)
+            .build();
+    Flow currentFlow =
+        Flow.builder()
+            .setIngressNode("inNode")
+            .setIngressInterface("inInterf")
+            .setDstIp(dstIp2)
+            .setSrcIp(srcIp2)
+            .setDstPort(dstPort2)
+            .setSrcPort(srcPort2)
+            .setIpProtocol(IpProtocol.TCP)
+            .build();
+
+    Transformation transformation1 = TracerouteUtils.sessionTransformation(inputFlow, currentFlow);
+    Transformation transformation2 =
+        FlowDiffUtils.buildSessionTransformation(FlowDiff.flowDiffs(inputFlow, currentFlow));
+
+    assertEquals(transformation1.getGuard(), transformation2.getGuard());
+
+    assertThat(
+        transformation1.getTransformationSteps(),
+        containsInAnyOrder(transformation2.getTransformationSteps().toArray()));
+
+    assertEquals(transformation1.getAndThen(), transformation2.getAndThen());
+    assertEquals(transformation1.getOrElse(), transformation2.getOrElse());
   }
 
   @Test
