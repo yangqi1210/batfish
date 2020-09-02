@@ -29,6 +29,126 @@ public final class PaloAltoTraceElementCreators {
         .build();
   }
 
+  @VisibleForTesting
+  public static TraceElement matchApplicationObjectTraceElement(
+      String application, String vsysName, String filename) {
+    return TraceElement.builder()
+        .add("Matched application object ")
+        .add(
+            application,
+            new VendorStructureId(
+                filename,
+                PaloAltoStructureType.APPLICATION.getDescription(),
+                computeObjectName(vsysName, application)))
+        .build();
+  }
+
+  @VisibleForTesting
+  public static TraceElement matchServiceObjectTraceElement(
+      String service, String vsysName, String filename) {
+    return TraceElement.builder()
+        .add("Matched service object ")
+        .add(
+            service,
+            new VendorStructureId(
+                filename,
+                PaloAltoStructureType.SERVICE.getDescription(),
+                computeObjectName(vsysName, service)))
+        .build();
+  }
+
+  @VisibleForTesting
+  public static TraceElement matchServiceGroupTraceElement(
+      String serviceGroup, String vsysName, String filename) {
+    return TraceElement.builder()
+        .add("Matched service group ")
+        .add(
+            serviceGroup,
+            new VendorStructureId(
+                filename,
+                PaloAltoStructureType.SERVICE_GROUP.getDescription(),
+                computeObjectName(vsysName, serviceGroup)))
+        .build();
+  }
+
+  @VisibleForTesting
+  public static TraceElement matchBuiltInAppliationTraceElement(String application) {
+    return TraceElement.of(String.format("Matched built-in application %s", application));
+  }
+
+  @VisibleForTesting
+  public static TraceElement matchBuiltInServiceTraceElement(String service) {
+    return TraceElement.of(String.format("Matched built-in service %s", service));
+  }
+
+  @VisibleForTesting
+  public static TraceElement matchDestinationTraceElement() {
+    return TraceElement.of("Matched destination address");
+  }
+
+  @VisibleForTesting
+  public static TraceElement matchSourceTraceElement() {
+    return TraceElement.of("Matched source address");
+  }
+
+  @VisibleForTesting
+  public static TraceElement matchNegatedDestinationTraceElement() {
+    return TraceElement.of("Matched negated destination address");
+  }
+
+  @VisibleForTesting
+  public static TraceElement matchNegatedSourceTraceElement() {
+    return TraceElement.of("Matched negated source address");
+  }
+
+  @VisibleForTesting
+  public static TraceElement matchAddressObjectTraceElement(
+      String address, String vsysName, String filename) {
+    return TraceElement.builder()
+        .add("Matched address object ")
+        .add(
+            address,
+            new VendorStructureId(
+                filename,
+                PaloAltoStructureType.ADDRESS_OBJECT.getDescription(),
+                computeObjectName(vsysName, address)))
+        .build();
+  }
+
+  @VisibleForTesting
+  public static TraceElement matchSpecificAddressTraceElement(String address) {
+    return TraceElement.of(String.format("Matched specific address %s", address));
+  }
+
+  @VisibleForTesting
+  public static TraceElement matchAnyTraceElement() {
+    return TraceElement.of("Matched any");
+  }
+
+  @VisibleForTesting
+  public static TraceElement matchServiceAnyTraceElement() {
+    return TraceElement.of("Matched service any");
+  }
+
+  @VisibleForTesting
+  public static TraceElement matchApplicationAnyTraceElement() {
+    return TraceElement.of("Matched application any");
+  }
+
+  @VisibleForTesting
+  public static TraceElement matchAddressGroupTraceElement(
+      String address, String vsysName, String filename) {
+    return TraceElement.builder()
+        .add("Matched address group ")
+        .add(
+            address,
+            new VendorStructureId(
+                filename,
+                PaloAltoStructureType.ADDRESS_GROUP.getDescription(),
+                computeObjectName(vsysName, address)))
+        .build();
+  }
+
   /**
    * Creates {@link TraceElement} for ACL line representing security rules for going from {@code
    * fromZone} to {@code toZone} (intrazone rules if zones are the same)

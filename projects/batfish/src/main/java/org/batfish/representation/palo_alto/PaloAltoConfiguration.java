@@ -21,6 +21,14 @@ import static org.batfish.representation.palo_alto.PaloAltoStructureType.ADDRESS
 import static org.batfish.representation.palo_alto.PaloAltoTraceElementCreators.emptyZoneRejectTraceElement;
 import static org.batfish.representation.palo_alto.PaloAltoTraceElementCreators.ifaceOutgoingTraceElement;
 import static org.batfish.representation.palo_alto.PaloAltoTraceElementCreators.intrazoneDefaultAcceptTraceElement;
+import static org.batfish.representation.palo_alto.PaloAltoTraceElementCreators.matchAnyTraceElement;
+import static org.batfish.representation.palo_alto.PaloAltoTraceElementCreators.matchApplicationAnyTraceElement;
+import static org.batfish.representation.palo_alto.PaloAltoTraceElementCreators.matchDestinationTraceElement;
+import static org.batfish.representation.palo_alto.PaloAltoTraceElementCreators.matchNegatedDestinationTraceElement;
+import static org.batfish.representation.palo_alto.PaloAltoTraceElementCreators.matchNegatedSourceTraceElement;
+import static org.batfish.representation.palo_alto.PaloAltoTraceElementCreators.matchServiceAnyTraceElement;
+import static org.batfish.representation.palo_alto.PaloAltoTraceElementCreators.matchSourceTraceElement;
+import static org.batfish.representation.palo_alto.PaloAltoTraceElementCreators.matchSpecificAddressTraceElement;
 import static org.batfish.representation.palo_alto.PaloAltoTraceElementCreators.originatedFromDeviceTraceElement;
 import static org.batfish.representation.palo_alto.PaloAltoTraceElementCreators.unzonedIfaceRejectTraceElement;
 import static org.batfish.representation.palo_alto.PaloAltoTraceElementCreators.zoneToZoneMatchTraceElement;
@@ -556,14 +564,15 @@ public class PaloAltoConfiguration extends VendorConfiguration {
 
               // Services
               for (Service service : namespace.getServices().values()) {
-                IpAccessList acl = service.toIpAccessList(LineAction.PERMIT, this, namespace, _w);
+                IpAccessList acl =
+                    service.toIpAccessList(LineAction.PERMIT, this, namespace, _w, _filename);
                 _c.getIpAccessLists().put(acl.getName(), acl);
               }
 
               // Service groups
               for (ServiceGroup serviceGroup : namespace.getServiceGroups().values()) {
                 IpAccessList acl =
-                    serviceGroup.toIpAccessList(LineAction.PERMIT, this, namespace, _w);
+                    serviceGroup.toIpAccessList(LineAction.PERMIT, this, namespace, _w, _filename);
                 _c.getIpAccessLists().put(acl.getName(), acl);
               }
             });
@@ -980,6 +989,31 @@ public class PaloAltoConfiguration extends VendorConfiguration {
         ruleName, vsys.getName(), _filename);
   }
 
+  private TraceElement matchAddressObjectTraceElement(String address, Vsys vsys) {
+    return PaloAltoTraceElementCreators.matchAddressObjectTraceElement(
+        address, vsys.getName(), _filename);
+  }
+
+  private TraceElement matchAddressGroupTraceElement(String address, Vsys vsys) {
+    return PaloAltoTraceElementCreators.matchAddressGroupTraceElement(
+        address, vsys.getName(), _filename);
+  }
+
+  private TraceElement matchServiceObjectTraceElement(String service, Vsys vsys) {
+    return PaloAltoTraceElementCreators.matchServiceObjectTraceElement(
+        service, vsys.getName(), _filename);
+  }
+
+  private TraceElement matchServiceGroupTraceElement(String serviceGroup, Vsys vsys) {
+    return PaloAltoTraceElementCreators.matchServiceGroupTraceElement(
+        serviceGroup, vsys.getName(), _filename);
+  }
+
+  private TraceElement matchApplicationObjectTraceElement(String application, Vsys vsys) {
+    return PaloAltoTraceElementCreators.matchApplicationObjectTraceElement(
+        application, vsys.getName(), _filename);
+  }
+
   /** Convert specified firewall rule into an {@link ExprAclLine}. */
   // Most of the conversion is fairly straight-forward: rules have actions, src and dest IP
   // constraints, and service (aka Protocol + Ports) constraints.
@@ -994,27 +1028,20 @@ public class PaloAltoConfiguration extends VendorConfiguration {
 
     //////////////////////////////////////////////////////////////////////////////////////////
     // 2. Match SRC IPs if specified.
-    IpSpace srcIps = ipSpaceFromRuleEndpoints(rule.getSource(), vsys, _w);
-    if (srcIps != null) {
-      AclLineMatchExpr match =
-          new MatchHeaderSpace(HeaderSpace.builder().setSrcIps(srcIps).build());
-      if (rule.getNegateSource()) {
-        match = new NotMatchExpr(match);
-      }
-      conjuncts.add(match);
-    }
+    conjuncts.add(getSrcAddrExpr(rule, vsys));
+    //    IpSpace srcIps = ipSpaceFromRuleEndpoints(rule.getSource(), vsys, _w);
+    //    if (srcIps != null) {
+    //      AclLineMatchExpr match =
+    //          new MatchHeaderSpace(HeaderSpace.builder().setSrcIps(srcIps).build());
+    //      if (rule.getNegateSource()) {
+    //        match = new NotMatchExpr(match);
+    //      }
+    //      conjuncts.add(match);
+    //    }
 
     //////////////////////////////////////////////////////////////////////////////////////////
     // 3. Match DST IPs if specified.
-    IpSpace dstIps = ipSpaceFromRuleEndpoints(rule.getDestination(), vsys, _w);
-    if (dstIps != null) {
-      AclLineMatchExpr match =
-          new MatchHeaderSpace(HeaderSpace.builder().setDstIps(dstIps).build());
-      if (rule.getNegateDestination()) {
-        match = new NotMatchExpr(match);
-      }
-      conjuncts.add(match);
-    }
+    conjuncts.add(getDestAddrExpr(rule, vsys));
 
     //////////////////////////////////////////////////////////////////////////////////////////
     // 4. Match services.
@@ -1026,6 +1053,30 @@ public class PaloAltoConfiguration extends VendorConfiguration {
         .setMatchCondition(new AndMatchExpr(conjuncts))
         .setTraceElement(matchSecurityRuleTraceElement(rule.getName(), vsys))
         .build();
+  }
+
+  private AclLineMatchExpr getDestAddrExpr(SecurityRule rule, Vsys vsys) {
+    List<AclLineMatchExpr> disjuncts =
+        rule.getDestination().stream()
+            .map(e -> ruleEndpointToDstExpr(e, vsys, _w))
+            .collect(Collectors.toList());
+    AclLineMatchExpr match = new OrMatchExpr(disjuncts, matchDestinationTraceElement());
+    if (rule.getNegateDestination()) {
+      return new NotMatchExpr(match, matchNegatedDestinationTraceElement());
+    }
+    return match;
+  }
+
+  private AclLineMatchExpr getSrcAddrExpr(SecurityRule rule, Vsys vsys) {
+    List<AclLineMatchExpr> disjuncts =
+        rule.getSource().stream()
+            .map(e -> ruleEndpointToSrcExpr(e, vsys, _w))
+            .collect(Collectors.toList());
+    AclLineMatchExpr match = new OrMatchExpr(disjuncts, matchSourceTraceElement());
+    if (rule.getNegateSource()) {
+      return new NotMatchExpr(match, matchNegatedSourceTraceElement());
+    }
+    return match;
   }
 
   /**
@@ -1047,10 +1098,13 @@ public class PaloAltoConfiguration extends VendorConfiguration {
       String vsysName = service.getVsysName(this, vsys);
       if (vsysName != null) {
         serviceDisjuncts.add(
-            permittedByAcl(computeServiceGroupMemberAclName(vsysName, serviceName)));
+            permittedByAcl(
+                computeServiceGroupMemberAclName(vsysName, serviceName),
+                matchServiceGroupTraceElement(serviceName, vsys)));
       } else if (serviceName.equals(ServiceBuiltIn.ANY.getName())) {
         // Anything is allowed.
-        return Optional.empty();
+        // TODO clean-up
+        return Optional.of(new TrueExpr(matchServiceAnyTraceElement()));
       } else if (serviceName.equals(ServiceBuiltIn.APPLICATION_DEFAULT.getName())) {
         if (rule.getAction() == LineAction.PERMIT) {
           // Since Batfish cannot currently match above L4, we follow Cisco-fragments-like logic:
@@ -1060,9 +1114,9 @@ public class PaloAltoConfiguration extends VendorConfiguration {
           serviceDisjuncts.addAll(matchServicesForApplications(rule, vsys));
         }
       } else if (serviceName.equals(ServiceBuiltIn.SERVICE_HTTP.getName())) {
-        serviceDisjuncts.add(new MatchHeaderSpace(ServiceBuiltIn.SERVICE_HTTP.getHeaderSpace()));
+        serviceDisjuncts.add(ServiceBuiltIn.SERVICE_HTTP.toAclLineMatchExpr());
       } else if (serviceName.equals(ServiceBuiltIn.SERVICE_HTTPS.getName())) {
-        serviceDisjuncts.add(new MatchHeaderSpace(ServiceBuiltIn.SERVICE_HTTPS.getHeaderSpace()));
+        serviceDisjuncts.add(ServiceBuiltIn.SERVICE_HTTPS.toAclLineMatchExpr());
       } else {
         _w.redFlag(String.format("No matching service group/object found for: %s", serviceName));
       }
@@ -1071,6 +1125,7 @@ public class PaloAltoConfiguration extends VendorConfiguration {
   }
 
   private List<AclLineMatchExpr> matchServicesForApplications(SecurityRule rule, Vsys vsys) {
+    // TODO ASDF update this
     ImmutableList.Builder<AclLineMatchExpr> ret = ImmutableList.builder();
     Queue<String> applications = new LinkedBlockingQueue<>(rule.getApplications());
     while (!applications.isEmpty()) {
@@ -1078,10 +1133,11 @@ public class PaloAltoConfiguration extends VendorConfiguration {
 
       // Assume all traffic matches some application under the "any" definition
       if (name.equals(CATCHALL_APPLICATION_NAME)) {
-        return ImmutableList.of(TrueExpr.INSTANCE);
+        return ImmutableList.of(new TrueExpr(matchApplicationAnyTraceElement()));
       }
       ApplicationGroup group = vsys.getApplicationGroups().get(name);
       if (group != null) {
+        // TODO add tracing for application-group
         applications.addAll(
             group.getDescendantObjects(vsys.getApplications(), vsys.getApplicationGroups()));
         continue;
@@ -1089,13 +1145,22 @@ public class PaloAltoConfiguration extends VendorConfiguration {
       Application a = vsys.getApplications().get(name);
       if (a != null) {
         for (Service s : a.getServices()) {
-          ret.add(s.toMatchHeaderSpace(_w));
+          ret.add(s.toMatchHeaderSpace(_w, matchApplicationObjectTraceElement(name, vsys)));
         }
         continue;
       }
       Optional<Application> builtIn = ApplicationBuiltIn.getBuiltInApplication(name);
       if (builtIn.isPresent()) {
-        builtIn.get().getServices().forEach(s -> ret.add(s.toMatchHeaderSpace(_w)));
+        builtIn
+            .get()
+            .getServices()
+            .forEach(
+                s ->
+                    ret.add(
+                        s.toMatchHeaderSpace(
+                            _w,
+                            PaloAltoTraceElementCreators.matchBuiltInAppliationTraceElement(
+                                name))));
         continue;
       }
       // Did not find in the right hierarchy, so stop and warn.
@@ -1157,6 +1222,24 @@ public class PaloAltoConfiguration extends VendorConfiguration {
     }
   }
 
+  private AclLineMatchExpr ruleEndpointToDstExpr(RuleEndpoint endpoint, Vsys vsys, Warnings w) {
+    HeaderSpace match =
+        HeaderSpace.builder().setDstIps(ruleEndpointToIpSpace(endpoint, vsys, w)).build();
+    Optional<TraceElement> traceElement = ruleEndpointToTraceElement(endpoint, vsys, w);
+    return traceElement
+        .map(element -> new MatchHeaderSpace(match, element))
+        .orElseGet(() -> new MatchHeaderSpace(match));
+  }
+
+  private AclLineMatchExpr ruleEndpointToSrcExpr(RuleEndpoint endpoint, Vsys vsys, Warnings w) {
+    HeaderSpace match =
+        HeaderSpace.builder().setSrcIps(ruleEndpointToIpSpace(endpoint, vsys, w)).build();
+    Optional<TraceElement> traceElement = ruleEndpointToTraceElement(endpoint, vsys, w);
+    return traceElement
+        .map(element -> new MatchHeaderSpace(match, element))
+        .orElseGet(() -> new MatchHeaderSpace(match));
+  }
+
   /** Converts {@link RuleEndpoint} to {@code IpSpace} */
   @Nonnull
   @SuppressWarnings("fallthrough")
@@ -1202,6 +1285,51 @@ public class PaloAltoConfiguration extends VendorConfiguration {
           default:
             w.redFlag("Could not convert RuleEndpoint to IpSpace: " + endpoint);
             return EmptyIpSpace.INSTANCE;
+        }
+    }
+  }
+
+  /** Converts {@link RuleEndpoint} to {@code TraceElement} */
+  @Nonnull
+  @SuppressWarnings("fallthrough")
+  private Optional<TraceElement> ruleEndpointToTraceElement(
+      RuleEndpoint endpoint, Vsys vsys, Warnings w) {
+    String endpointValue = endpoint.getValue();
+    // Palo Alto allows object references that look like IP addresses, ranges, etc.
+    // Devices use objects over constants when possible, so, check to see if there is a matching
+    // group or object regardless of the type of endpoint we're expecting.
+    if (vsys.getAddressObjects().containsKey(endpointValue)) {
+      return Optional.of(matchAddressObjectTraceElement(endpointValue, vsys));
+    }
+    if (vsys.getAddressGroups().containsKey(endpoint.getValue())) {
+      return Optional.of(matchAddressGroupTraceElement(endpointValue, vsys));
+    }
+    switch (vsys.getNamespaceType()) {
+      case LEAF:
+        if (_shared != null) {
+          return ruleEndpointToTraceElement(endpoint, _shared, w);
+        }
+        // fall-through
+      case SHARED:
+        if (_panorama != null) {
+          return ruleEndpointToTraceElement(endpoint, _panorama, w);
+        }
+        // fall-through
+      default:
+        // No named object found matching this endpoint, so parse the endpoint value as is
+        switch (endpoint.getType()) {
+          case Any:
+            return Optional.of(matchAnyTraceElement());
+          case IP_ADDRESS:
+          case IP_PREFIX:
+          case IP_RANGE:
+            return Optional.of(matchSpecificAddressTraceElement(endpointValue));
+          case REFERENCE:
+            // Rely on undefined references to surface this issue (endpoint reference not defined)
+            return Optional.empty();
+          default:
+            w.redFlag("Could not convert RuleEndpoint to IpSpace: " + endpoint);
+            return Optional.empty();
         }
     }
   }
@@ -1468,11 +1596,9 @@ public class PaloAltoConfiguration extends VendorConfiguration {
       // Anything is allowed
       return Optional.of(new PacketMatchExpr(TrueExpr.INSTANCE));
     } else if (serviceName.equals(ServiceBuiltIn.SERVICE_HTTP.getName())) {
-      return Optional.of(
-          new PacketMatchExpr(new MatchHeaderSpace(ServiceBuiltIn.SERVICE_HTTP.getHeaderSpace())));
+      return Optional.of(new PacketMatchExpr(ServiceBuiltIn.SERVICE_HTTP.toAclLineMatchExpr()));
     } else if (serviceName.equals(ServiceBuiltIn.SERVICE_HTTPS.getName())) {
-      return Optional.of(
-          new PacketMatchExpr(new MatchHeaderSpace(ServiceBuiltIn.SERVICE_HTTPS.getHeaderSpace())));
+      return Optional.of(new PacketMatchExpr(ServiceBuiltIn.SERVICE_HTTPS.toAclLineMatchExpr()));
     } else {
       _w.redFlag(String.format("No matching service group/object found for: %s", serviceName));
     }

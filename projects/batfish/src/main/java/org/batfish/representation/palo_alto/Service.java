@@ -15,6 +15,7 @@ import org.batfish.datamodel.IpAccessList;
 import org.batfish.datamodel.IpProtocol;
 import org.batfish.datamodel.LineAction;
 import org.batfish.datamodel.SubRange;
+import org.batfish.datamodel.TraceElement;
 import org.batfish.datamodel.acl.AclLineMatchExpr;
 import org.batfish.datamodel.acl.FalseExpr;
 import org.batfish.datamodel.acl.MatchHeaderSpace;
@@ -146,7 +147,7 @@ public final class Service implements ServiceGroupMember {
 
   @Override
   public IpAccessList toIpAccessList(
-      LineAction action, PaloAltoConfiguration pc, Vsys vsys, Warnings w) {
+      LineAction action, PaloAltoConfiguration pc, Vsys vsys, Warnings w, String filename) {
     IpAccessList.Builder retAcl =
         IpAccessList.builder()
             .setName(computeServiceGroupMemberAclName(vsys.getName(), _name))
@@ -159,11 +160,19 @@ public final class Service implements ServiceGroupMember {
                 ExprAclLine.builder()
                     .setAction(action)
                     .setMatchCondition(toMatchHeaderSpace(w))
+                    .setTraceElement(
+                        PaloAltoTraceElementCreators.matchServiceObjectTraceElement(
+                            _name, vsys.getName(), filename))
                     .build()))
         .build();
   }
 
   public @Nonnull AclLineMatchExpr toMatchHeaderSpace(@Nonnull Warnings w) {
+    return toMatchHeaderSpace(w, null);
+  }
+
+  public @Nonnull AclLineMatchExpr toMatchHeaderSpace(
+      @Nonnull Warnings w, @Nullable TraceElement traceElement) {
     if (_protocol == null) {
       w.redFlag(
           String.format(
@@ -177,6 +186,6 @@ public final class Service implements ServiceGroupMember {
             .setSrcPorts(_sourcePorts.getSubRanges())
             .setDstPorts(_ports.getSubRanges())
             .build();
-    return new MatchHeaderSpace(headerSpace);
+    return new MatchHeaderSpace(headerSpace, traceElement);
   }
 }

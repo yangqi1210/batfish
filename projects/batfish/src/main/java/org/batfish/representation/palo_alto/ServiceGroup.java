@@ -1,6 +1,7 @@
 package org.batfish.representation.palo_alto;
 
 import static org.batfish.representation.palo_alto.PaloAltoConfiguration.computeServiceGroupMemberAclName;
+import static org.batfish.representation.palo_alto.PaloAltoTraceElementCreators.matchServiceAnyTraceElement;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -11,7 +12,6 @@ import org.batfish.datamodel.AclLine;
 import org.batfish.datamodel.ExprAclLine;
 import org.batfish.datamodel.IpAccessList;
 import org.batfish.datamodel.LineAction;
-import org.batfish.datamodel.acl.MatchHeaderSpace;
 import org.batfish.datamodel.acl.PermittedByAcl;
 import org.batfish.datamodel.acl.TrueExpr;
 
@@ -37,7 +37,7 @@ public final class ServiceGroup implements ServiceGroupMember {
 
   @Override
   public IpAccessList toIpAccessList(
-      LineAction action, PaloAltoConfiguration pc, Vsys vsys, Warnings w) {
+      LineAction action, PaloAltoConfiguration pc, Vsys vsys, Warnings w, String filename) {
     List<AclLine> lines = new LinkedList<>();
     for (ServiceOrServiceGroupReference memberReference : _references) {
       // Check for matching object before using built-ins
@@ -49,22 +49,19 @@ public final class ServiceGroup implements ServiceGroupMember {
             new ExprAclLine(
                 action,
                 new PermittedByAcl(
-                    computeServiceGroupMemberAclName(vsysName, memberReference.getName())),
+                    computeServiceGroupMemberAclName(vsysName, memberReference.getName()),
+                    PaloAltoTraceElementCreators.matchServiceGroupTraceElement(
+                        _name, vsys.getName(), filename)),
                 memberReference.getName()));
       } else if (serviceName.equals(ServiceBuiltIn.ANY.getName())) {
         lines.clear();
-        lines.add(new ExprAclLine(action, TrueExpr.INSTANCE, _name));
+        lines.add(new ExprAclLine(action, TrueExpr.INSTANCE, _name, matchServiceAnyTraceElement()));
         break;
       } else if (serviceName.equals(ServiceBuiltIn.SERVICE_HTTP.getName())) {
-        lines.add(
-            new ExprAclLine(
-                action, new MatchHeaderSpace(ServiceBuiltIn.SERVICE_HTTP.getHeaderSpace()), _name));
+        lines.add(new ExprAclLine(action, ServiceBuiltIn.SERVICE_HTTP.toAclLineMatchExpr(), _name));
       } else if (serviceName.equals(ServiceBuiltIn.SERVICE_HTTPS.getName())) {
         lines.add(
-            new ExprAclLine(
-                action,
-                new MatchHeaderSpace(ServiceBuiltIn.SERVICE_HTTPS.getHeaderSpace()),
-                _name));
+            new ExprAclLine(action, ServiceBuiltIn.SERVICE_HTTPS.toAclLineMatchExpr(), _name));
       }
     }
     return IpAccessList.builder()
