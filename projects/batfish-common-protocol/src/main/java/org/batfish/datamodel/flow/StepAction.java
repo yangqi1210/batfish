@@ -38,4 +38,34 @@ public enum StepAction {
   TRANSMITTED,
   /** Action that a filter permits a packet */
   PERMITTED;
+
+  /**
+   * Returns true if this {@link StepAction} is terminal, i.e. if it indicates the end of the trace.
+   */
+  public boolean isTerminal() {
+    switch (this) {
+      case ACCEPTED:
+      case DELIVERED_TO_SUBNET:
+      case DENIED:
+      case EXITS_NETWORK:
+      case INSUFFICIENT_INFO:
+      case LOOP:
+      case NEIGHBOR_UNREACHABLE:
+      case NO_ROUTE:
+      case NULL_ROUTED:
+        return true;
+
+      case FORWARDED:
+      case FORWARDED_TO_NEXT_VRF:
+      case MATCHED_SESSION:
+      case ORIGINATED:
+      case RECEIVED:
+      case SETUP_SESSION:
+      case TRANSFORMED:
+      case TRANSMITTED:
+      case PERMITTED:
+        return false;
+    }
+    throw new IllegalStateException("should never reach here");
+  }
 }

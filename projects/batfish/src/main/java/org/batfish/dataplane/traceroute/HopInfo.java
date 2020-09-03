@@ -118,7 +118,9 @@ public final class HopInfo {
 
     Builder setFlowDisposition(FlowDisposition flowDisposition) {
       checkState(_flowDisposition == null, "flow disposition already set");
-      checkArgument(!flowDisposition.isSuccessful(), "must include a returnFlow if flow disposition is successful.");
+      checkArgument(
+          !flowDisposition.isSuccessful(),
+          "must include a returnFlow if flow disposition is successful.");
       _flowDisposition = flowDisposition;
       return this;
     }

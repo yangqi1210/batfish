@@ -37,7 +37,9 @@ public class TraceDag {
         @Nullable FlowDisposition flowDisposition,
         @Nullable Flow returnFlow,
         List<Integer> successors) {
-      checkArgument((flowDisposition != null && flowDisposition.isSuccessful()) == (returnFlow != null), "returnFlow is present iff disposition is successful");
+      checkArgument(
+          (flowDisposition != null && flowDisposition.isSuccessful()) == (returnFlow != null),
+          "returnFlow is present iff disposition is successful");
       _hop = hop;
       _firewallSessionTraceInfo = firewallSessionTraceInfo;
       _flowDisposition = flowDisposition;

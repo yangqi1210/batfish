@@ -88,6 +88,6 @@ public class TraceDagTest {
                 new Trace(FlowDisposition.NO_ROUTE, ImmutableList.of(hopA, hopB2, hopC3)),
                 null,
                 ImmutableList.of())));
-    assertEquals(6,dag.size());
+    assertEquals(6, dag.size());
   }
 }

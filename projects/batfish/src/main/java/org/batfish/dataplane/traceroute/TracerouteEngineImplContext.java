@@ -91,11 +91,10 @@ public class TracerouteEngineImplContext {
               String ingressInterfaceName = flow.getIngressInterface();
               DagTraceRecorder recorder = new DagTraceRecorder(flow);
               long start = System.currentTimeMillis();
-              initialFlowTracer(
-                      this, ingressNodeName, ingressInterfaceName, flow, recorder)
+              initialFlowTracer(this, ingressNodeName, ingressInterfaceName, flow, recorder)
                   .processHop();
               TraceDag dag = recorder.build();
-              long  t = System.currentTimeMillis() - start;
+              long t = System.currentTimeMillis() - start;
               System.out.println(String.format("recorded %s traces in %d ms", dag.size(), t));
               dag.getTraces().forEach(currentTraces::add);
             });

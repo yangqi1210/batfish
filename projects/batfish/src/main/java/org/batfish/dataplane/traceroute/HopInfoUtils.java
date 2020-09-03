@@ -1,13 +1,11 @@
 package org.batfish.dataplane.traceroute;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static org.batfish.datamodel.FlowDiffUtils.applyFlowDiffs;
 import static org.batfish.datamodel.FlowDiffUtils.buildSessionTransformation;
+import static org.batfish.dataplane.traceroute.GetStepDisposition.getStepDisposition;
+import static org.batfish.dataplane.traceroute.TracerouteUtils.returnFlow;
 
-import com.google.common.collect.ImmutableList;
-import java.util.Objects;
 import javax.annotation.Nullable;
 import org.batfish.datamodel.Flow;
 import org.batfish.datamodel.FlowDisposition;
@@ -44,115 +42,6 @@ import org.batfish.symbolic.IngressLocation;
 public final class HopInfoUtils {
   private HopInfoUtils() {}
 
-  private static FlowDisposition getStepDisposition(Step<?> step) {
-    return step.accept(new StepDispositionVisitor());
-  }
-
-  private static class StepDispositionVisitor implements StepVisitor<FlowDisposition> {
-    @Override
-    public FlowDisposition visitArpErrorStep(ArpErrorStep arpErrorStep) {
-      switch (arpErrorStep.getAction()) {
-        case INSUFFICIENT_INFO:
-          return FlowDisposition.INSUFFICIENT_INFO;
-        case NEIGHBOR_UNREACHABLE:
-          return FlowDisposition.NEIGHBOR_UNREACHABLE;
-        default:
-          throw new IllegalStateException(
-              String.format("invalid StepAction: %s", arpErrorStep.getAction()));
-      }
-    }
-
-    @Override
-    public FlowDisposition visitDeliveredStep(DeliveredStep deliveredStep) {
-      switch (deliveredStep.getAction()) {
-        case DELIVERED_TO_SUBNET:
-          return FlowDisposition.DELIVERED_TO_SUBNET;
-        case EXITS_NETWORK:
-          return FlowDisposition.EXITS_NETWORK;
-        default:
-          throw new IllegalStateException(
-              String.format("invalid StepAction: %s", deliveredStep.getAction()));
-      }
-    }
-
-    @Override
-    public FlowDisposition visitEnterInputIfaceStep(EnterInputIfaceStep enterInputIfaceStep) {
-      return null;
-    }
-
-    @Override
-    public FlowDisposition visitExitOutputIfaceStep(ExitOutputIfaceStep exitOutputIfaceStep) {
-      return null;
-    }
-
-    @Override
-    public FlowDisposition visitFilterStep(FilterStep filterStep) {
-      if (filterStep.getAction() == StepAction.DENIED) {
-        switch (filterStep.getDetail().getType()) {
-          case INGRESS_FILTER:
-          case POST_TRANSFORMATION_INGRESS_FILTER:
-            return FlowDisposition.DENIED_IN;
-          case EGRESS_FILTER:
-          case EGRESS_ORIGINAL_FLOW_FILTER:
-          case PRE_TRANSFORMATION_EGRESS_FILTER:
-            return FlowDisposition.DENIED_OUT;
-        }
-      }
-      return null;
-    }
-
-    @Override
-    public FlowDisposition visitInboundStep(InboundStep inboundStep) {
-      return FlowDisposition.ACCEPTED;
-    }
-
-    @Override
-    public FlowDisposition visitLoopStep(LoopStep loopStep) {
-      return FlowDisposition.LOOP;
-    }
-
-    @Override
-    public FlowDisposition visitMatchSessionStep(MatchSessionStep matchSessionStep) {
-      return null;
-    }
-
-    @Override
-    public FlowDisposition visitOriginateStep(OriginateStep originateStep) {
-      return null;
-    }
-
-    @Override
-    public FlowDisposition visitRoutingStep(RoutingStep routingStep) {
-      switch (routingStep.getAction()) {
-        case NO_ROUTE:
-          return FlowDisposition.NO_ROUTE;
-        case NULL_ROUTED:
-          return FlowDisposition.NULL_ROUTED;
-        case FORWARDED:
-        case FORWARDED_TO_NEXT_VRF:
-          return null;
-        default:
-          throw new IllegalStateException(
-              String.format("invalid StepAction: %s", routingStep.getAction()));
-      }
-    }
-
-    @Override
-    public FlowDisposition visitPolicyStep(PolicyStep policyStep) {
-      return null;
-    }
-
-    @Override
-    public FlowDisposition visitSetupSessionStep(SetupSessionStep setupSessionStep) {
-      return null;
-    }
-
-    @Override
-    public FlowDisposition visitTransformationStep(TransformationStep transformationStep) {
-      return null;
-    }
-  }
-
   /** Walks over a hop (and its steps) to pull out the {@link HopInfo}. */
   private static class HopInfoExtractor implements StepVisitor<Void> {
     private final HopInfo.Builder _builder;
@@ -180,25 +69,17 @@ public final class HopInfoUtils {
 
     @Override
     public Void visitArpErrorStep(ArpErrorStep arpErrorStep) {
-      FlowDisposition stepDisposition = getStepDisposition(arpErrorStep);
-      checkArgument(
-          stepDisposition != null && !stepDisposition.isSuccessful(),
-          "ArpErrorStep must have a failure disposition");
-      _builder.setFlowDisposition(stepDisposition);
+      _builder.setFlowDisposition(getStepDisposition(arpErrorStep));
       return null;
     }
 
     @Override
     public Void visitDeliveredStep(DeliveredStep deliveredStep) {
       FlowDisposition stepDisposition = getStepDisposition(deliveredStep);
-      checkArgument(
-          stepDisposition != null && stepDisposition.isSuccessful(),
-          "DeliveredStep must have a successful disposition");
       NodeInterfacePair outIface = deliveredStep.getDetail().getOutputInterface();
       _builder.setFlowDisposition(
           stepDisposition,
-          TracerouteUtils.returnFlow(
-              _currentFlow, outIface.getHostname(), null, outIface.getInterface()));
+          returnFlow(_currentFlow, outIface.getHostname(), null, outIface.getInterface()));
       return null;
     }
 
@@ -225,11 +106,6 @@ public final class HopInfoUtils {
     @Override
     public Void visitFilterStep(FilterStep filterStep) {
       FlowDisposition stepDisposition = getStepDisposition(filterStep);
-      checkArgument(
-          stepDisposition == null
-              || stepDisposition == FlowDisposition.DENIED_IN
-              || stepDisposition == FlowDisposition.DENIED_OUT,
-          "invalid disposition flow FilterStep");
       if (stepDisposition != null) {
         _builder.setFlowDisposition(stepDisposition);
       }
@@ -238,16 +114,18 @@ public final class HopInfoUtils {
 
     @Override
     public Void visitInboundStep(InboundStep inboundStep) {
-      // do nothing
+      assert inboundStep.getAction() == StepAction.ACCEPTED
+          : "InboundStep must have action ACCEPTED";
+      _builder.setFlowDisposition(
+          FlowDisposition.ACCEPTED,
+          returnFlow(_currentFlow, _hop.getNode().getName(), _currentVrf, null));
       return null;
     }
 
     @Override
     public Void visitLoopStep(LoopStep loopStep) {
-      checkState(_currentVrf != null, "currentVrf must be defined");
-      checkState(
-          getStepDisposition(loopStep) == FlowDisposition.LOOP,
-          "LoopStep must have LOOP disposition");
+      assert _currentVrf != null : "currentVrf must be defined before LoopStep";
+      assert loopStep.getAction() == StepAction.LOOP : "LoopStep must have LOOP action";
       _builder.setFlowDisposition(FlowDisposition.LOOP);
       _builder.setLoopDetectedBreadcrumb(
           new Breadcrumb(
@@ -263,22 +141,19 @@ public final class HopInfoUtils {
 
     @Override
     public Void visitOriginateStep(OriginateStep originateStep) {
-      checkState(
-          _ingressLocation == null, "ingressLocation already set when OriginateStep encountered");
-      checkState(_currentVrf == null, "currentVrf already set when OriginateStep encountered");
-      _currentVrf = checkNotNull(originateStep.getDetail().getOriginatingVrf());
+      assert _ingressLocation == null
+          : "ingressLocation already set when OriginateStep encountered";
+      assert _currentVrf == null : "currentVrf already set when OriginateStep encountered";
+      _currentVrf = originateStep.getDetail().getOriginatingVrf();
       _ingressLocation = IngressLocation.vrf(_hop.getNode().getName(), _currentVrf);
       return null;
     }
 
     @Override
     public Void visitRoutingStep(RoutingStep routingStep) {
-      checkState(_currentVrf != null);
+      assert _currentVrf != null : "currentVrf must be set before RoutingStep";
       FlowDisposition disposition = getStepDisposition(routingStep);
       if (disposition != null) {
-        checkArgument(
-            disposition == FlowDisposition.NO_ROUTE || disposition == FlowDisposition.NULL_ROUTED,
-            "invalid disposition for RoutingStep");
         _builder.setFlowDisposition(disposition);
       }
       _builder.setVisitedBreadcrumb(
@@ -289,7 +164,10 @@ public final class HopInfoUtils {
 
     @Override
     public Void visitPolicyStep(PolicyStep policyStep) {
-      // do nothing
+      FlowDisposition disposition = getStepDisposition(policyStep);
+      if (disposition != null) {
+        _builder.setFlowDisposition(disposition);
+      }
       return null;
     }
 
@@ -320,15 +198,5 @@ public final class HopInfoUtils {
       step.accept(ctor);
     }
     return ctor.buildNode();
-  }
-
-  static @Nullable FlowDisposition getHopDisposition(Hop hop) {
-    ImmutableList<FlowDisposition> stepDispositions =
-        hop.getSteps().stream()
-            .map(step -> step.accept(new StepDispositionVisitor()))
-            .filter(Objects::nonNull)
-            .collect(ImmutableList.toImmutableList());
-    checkState(stepDispositions.size() < 2);
-    return stepDispositions.isEmpty() ? null : stepDispositions.get(0);
   }
 }
