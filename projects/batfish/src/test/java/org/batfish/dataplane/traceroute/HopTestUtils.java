@@ -1,7 +1,6 @@
 package org.batfish.dataplane.traceroute;
 
 import com.google.common.collect.ImmutableList;
-import org.batfish.datamodel.Flow;
 import org.batfish.datamodel.collections.NodeInterfacePair;
 import org.batfish.datamodel.flow.EnterInputIfaceStep;
 import org.batfish.datamodel.flow.EnterInputIfaceStep.EnterInputIfaceStepDetail;
@@ -15,7 +14,6 @@ import org.batfish.datamodel.flow.RoutingStep;
 import org.batfish.datamodel.flow.RoutingStep.RoutingStepDetail;
 import org.batfish.datamodel.flow.Step;
 import org.batfish.datamodel.flow.StepAction;
-import org.batfish.datamodel.flow.TransformationStep.TransformationType;
 import org.batfish.datamodel.pojo.Node;
 
 /** Utilities for building {@link Hop hops} and {@link Step steps} for testing. */
@@ -57,19 +55,6 @@ final class HopTestUtils {
                         .setOutputInterface(NodeInterfacePair.of(node, "outIface"))
                         .build())
                 .build()));
-  }
-
-  /** Create a Hop with StepAction Forwarded and a transformation. */
-  static Hop forwardedHop(String node, Flow inFlow, Flow outFlow) {
-    return new Hop(
-        new Node(node),
-        ImmutableList.of(
-            enterInputIfaceStep(node),
-            RoutingStep.builder()
-                .setAction(StepAction.FORWARDED)
-                .setDetail(RoutingStepDetail.builder().build())
-                .build(),
-            TracerouteUtils.transformationStep(TransformationType.STATIC_NAT, inFlow, outFlow)));
   }
 
   static Hop loopHop(String node) {

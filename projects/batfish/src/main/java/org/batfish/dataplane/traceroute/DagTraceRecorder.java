@@ -1,7 +1,6 @@
 package org.batfish.dataplane.traceroute;
 
 import static com.google.common.base.Preconditions.checkState;
-import static org.batfish.dataplane.traceroute.HopInfoUtils.computeHopInfo;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.HashMultimap;
@@ -20,7 +19,6 @@ import javax.annotation.Nullable;
 import org.batfish.common.util.BatfishObjectMapper;
 import org.batfish.datamodel.Flow;
 import org.batfish.datamodel.flow.Hop;
-import org.batfish.datamodel.flow.TraceAndReverseFlow;
 
 /**
  * {@link TraceRecorder} that compresses traces into a {@link TraceDag} and allows partial traces to
@@ -71,15 +69,6 @@ public class DagTraceRecorder implements TraceRecorder {
     @Nullable SubDagBuilder _currentNextHopBuilder;
     final @Nullable List<Integer> _nextHops;
 
-    private SubDagBuilder(NodeKey key, List<Breadcrumb> breadcrumbs, Hop hop, Flow initialFlow) {
-      this(breadcrumbs, computeHopInfo(initialFlow, hop), key);
-    }
-
-    @VisibleForTesting
-    SubDagBuilder(List<Breadcrumb> breadcrumbs, HopInfo hopInfo) {
-      this(breadcrumbs, hopInfo, new NodeKey(hopInfo.getInitialFlow(), hopInfo.getHop()));
-    }
-
     SubDagBuilder(List<Breadcrumb> breadcrumbs, HopInfo hopInfo, NodeKey key) {
       _hopInfo = hopInfo;
       _key = key;
@@ -96,19 +85,19 @@ public class DagTraceRecorder implements TraceRecorder {
       _nextHops = _isFinalHop ? null : new ArrayList<>();
     }
 
-    boolean tryRecordPartialTrace(List<Hop> hops) {
+    boolean tryRecordPartialTrace(List<HopInfo> hops) {
       assert !_isFinalHop || hops.isEmpty();
       assert _isFinalHop == (_nextHops == null);
       if (hops.isEmpty()) {
         return _isFinalHop;
       }
-      Hop nextHop = hops.get(0);
-      if (_currentNextHopBuilder != null && _currentNextHopBuilder._hopInfo.getHop() != nextHop) {
+      HopInfo nextHop = hops.get(0);
+      if (_currentNextHopBuilder != null && _currentNextHopBuilder._hopInfo != nextHop) {
         _nextHops.add(_currentNextHopBuilder.build());
         _currentNextHopBuilder = null;
       }
       if (_currentNextHopBuilder == null) {
-        NodeKey key = new NodeKey(_hopInfo.getFinalFlow(), nextHop);
+        NodeKey key = new NodeKey(nextHop.getInitialFlow(), nextHop.getHop());
         Integer nodeId = findMatchingNode(key, _breadcrumbs);
         if (nodeId != null) {
           if (!_nextHops.contains(nodeId)) {
@@ -116,11 +105,10 @@ public class DagTraceRecorder implements TraceRecorder {
           }
           return true;
         }
-        _currentNextHopBuilder =
-            new SubDagBuilder(key, _breadcrumbs, nextHop, _hopInfo.getFinalFlow());
+        _currentNextHopBuilder = new SubDagBuilder(_breadcrumbs, nextHop, key);
       }
 
-      assert _currentNextHopBuilder._hopInfo.getHop() == nextHop;
+      assert _currentNextHopBuilder._hopInfo == nextHop;
       return _currentNextHopBuilder.tryRecordPartialTrace(hops.subList(1, hops.size()));
     }
 
@@ -146,7 +134,7 @@ public class DagTraceRecorder implements TraceRecorder {
         return nodeId;
       } else {
         assert _nextHops != null : "_nextHops cannot be null if not the final hop";
-        assert visitedBreadcrumb != null : "visitedBreadcrumb cannot be null if no the final hop";
+        assert visitedBreadcrumb != null : "visitedBreadcrumb cannot be null if not the final hop";
 
         if (_currentNextHopBuilder != null) {
           _nextHops.add(_currentNextHopBuilder.build());
@@ -224,24 +212,22 @@ public class DagTraceRecorder implements TraceRecorder {
   }
 
   @Override
-  public boolean tryRecordPartialTrace(List<Hop> hops) {
+  public boolean tryRecordPartialTrace(List<HopInfo> hops) {
     checkState(!_built, "Cannot add traces after the Dag has been built");
-    Hop rootHop = hops.get(0);
-    if (_rootBuilder != null && _rootBuilder._hopInfo.getHop() != rootHop) {
+    HopInfo rootHop = hops.get(0);
+    if (_rootBuilder != null && _rootBuilder._hopInfo != rootHop) {
       buildRoot();
     }
     if (_rootBuilder == null) {
       _rootBuilder =
-          new SubDagBuilder(
-              ImmutableList.of(), computeHopInfo(_flow, rootHop), new NodeKey(_flow, rootHop));
+          new SubDagBuilder(ImmutableList.of(), rootHop, new NodeKey(_flow, rootHop.getHop()));
     }
     return _rootBuilder.tryRecordPartialTrace(hops.subList(1, hops.size()));
   }
 
   @Override
-  public void recordTrace(TraceAndReverseFlow trace) {
-    checkState(
-        tryRecordPartialTrace(trace.getTrace().getHops()), "Failed to record a complete trace.");
+  public void recordTrace(List<HopInfo> hops) {
+    checkState(tryRecordPartialTrace(hops), "Failed to record a complete trace.");
   }
 
   private void buildRoot() {

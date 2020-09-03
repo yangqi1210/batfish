@@ -1,7 +1,6 @@
 package org.batfish.dataplane.traceroute;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 
 import javax.annotation.Nullable;
 import org.batfish.datamodel.Flow;
@@ -14,18 +13,75 @@ public final class HopInfo {
   private final Hop _hop;
   // Flow as it entered the hop
   private final Flow _initialFlow;
-  // Flow when exited (or stopped within) the hop
-  private final Flow _finalFlow;
   private final @Nullable FlowDisposition _disposition;
   private final @Nullable Flow _returnFlow;
   private final @Nullable FirewallSessionTraceInfo _firewallSessionTraceInfo;
   private final @Nullable Breadcrumb _loopDetectedBreadcrumb;
   private final @Nullable Breadcrumb _visitedBreadcrumb;
 
+  static HopInfo successHop(
+      Hop hop,
+      Flow initialFlow,
+      FlowDisposition successDisposition,
+      Flow returnFlow,
+      @Nullable FirewallSessionTraceInfo firewallSessionTraceInfo,
+      @Nullable Breadcrumb visitedBreadcrumb) {
+    checkArgument(successDisposition.isSuccessful());
+    return new HopInfo(
+        hop,
+        initialFlow,
+        successDisposition,
+        returnFlow,
+        firewallSessionTraceInfo,
+        null,
+        visitedBreadcrumb);
+  }
+
+  static HopInfo failureHop(
+      Hop hop,
+      Flow initialFlow,
+      FlowDisposition failureDisposition,
+      @Nullable FirewallSessionTraceInfo firewallSessionTraceInfo,
+      @Nullable Breadcrumb visitedBreadcrumb) {
+    checkArgument(!failureDisposition.isSuccessful());
+    checkArgument(failureDisposition != FlowDisposition.LOOP);
+    return new HopInfo(
+        hop,
+        initialFlow,
+        failureDisposition,
+        null,
+        firewallSessionTraceInfo,
+        null,
+        visitedBreadcrumb);
+  }
+
+  static HopInfo loopHop(
+      Hop hop,
+      Flow initialFlow,
+      Breadcrumb loopDetectedBreadcrumb,
+      @Nullable FirewallSessionTraceInfo firewallSessionTraceInfo) {
+    return new HopInfo(
+        hop,
+        initialFlow,
+        FlowDisposition.LOOP,
+        null,
+        firewallSessionTraceInfo,
+        loopDetectedBreadcrumb,
+        null);
+  }
+
+  static HopInfo forwardedHop(
+      Hop hop,
+      Flow initialFlow,
+      Breadcrumb visitedBreadcrumb,
+      @Nullable FirewallSessionTraceInfo firewallSessionTraceInfo) {
+    return new HopInfo(
+        hop, initialFlow, null, null, firewallSessionTraceInfo, null, visitedBreadcrumb);
+  }
+
   HopInfo(
       Hop hop,
       Flow initialFlow,
-      Flow finalFlow,
       @Nullable FlowDisposition disposition,
       @Nullable Flow returnFlow,
       @Nullable FirewallSessionTraceInfo firewallSessionTraceInfo,
@@ -41,14 +97,9 @@ public final class HopInfo {
     _firewallSessionTraceInfo = firewallSessionTraceInfo;
     _hop = hop;
     _initialFlow = initialFlow;
-    _finalFlow = finalFlow;
     _returnFlow = returnFlow;
     _loopDetectedBreadcrumb = loopDetectedBreadcrumb;
     _visitedBreadcrumb = visitedBreadcrumb;
-  }
-
-  public static Builder builder(Hop hop, Flow initialFlow) {
-    return new Builder(hop, initialFlow);
   }
 
   public Hop getHop() {
@@ -64,6 +115,7 @@ public final class HopInfo {
     return _loopDetectedBreadcrumb;
   }
 
+  @Nullable
   Breadcrumb getVisitedBreadcrumb() {
     return _visitedBreadcrumb;
   }
@@ -82,73 +134,5 @@ public final class HopInfo {
   @Nullable
   public FlowDisposition getDisposition() {
     return _disposition;
-  }
-
-  Flow getFinalFlow() {
-    return _finalFlow;
-  }
-
-  static final class Builder {
-    private final Hop _hop;
-    private final Flow _initialFlow;
-    private @Nullable Flow _returnFlow;
-    private @Nullable Breadcrumb _loopDetectedBreadcrumb;
-    private @Nullable Breadcrumb _visitedBreadcrumb;
-    private @Nullable FlowDisposition _flowDisposition;
-    private @Nullable FirewallSessionTraceInfo _firewallSessionTraceInfo;
-
-    Builder(Hop hop, Flow initialFlow) {
-      _hop = hop;
-      _initialFlow = initialFlow;
-    }
-
-    Builder setLoopDetectedBreadcrumb(Breadcrumb breadcrumb) {
-      checkState(_loopDetectedBreadcrumb == null, "loopDetectedBreadcrumb must be null");
-      checkState(_visitedBreadcrumb == null, "visitedBreadcrumbs must be null");
-      _loopDetectedBreadcrumb = breadcrumb;
-      return this;
-    }
-
-    Builder setVisitedBreadcrumb(Breadcrumb breadcrumb) {
-      checkState(_loopDetectedBreadcrumb == null, "loopDetectedBreadcrumb must be null");
-      checkState(_visitedBreadcrumb == null, "visitedBreadcrumbs must be null");
-      _visitedBreadcrumb = breadcrumb;
-      return this;
-    }
-
-    Builder setFlowDisposition(FlowDisposition flowDisposition) {
-      checkState(_flowDisposition == null, "flow disposition already set");
-      checkArgument(
-          !flowDisposition.isSuccessful(),
-          "must include a returnFlow if flow disposition is successful.");
-      _flowDisposition = flowDisposition;
-      return this;
-    }
-
-    Builder setFlowDisposition(FlowDisposition flowDisposition, Flow returnFlow) {
-      checkState(_flowDisposition == null, "flow disposition already set");
-      checkArgument(flowDisposition.isSuccessful());
-      _flowDisposition = flowDisposition;
-      _returnFlow = returnFlow;
-      return this;
-    }
-
-    Builder setFirewallSessionTraceInfo(FirewallSessionTraceInfo firewallSessionTraceInfo) {
-      checkState(_firewallSessionTraceInfo == null, "session info already set");
-      _firewallSessionTraceInfo = firewallSessionTraceInfo;
-      return this;
-    }
-
-    public HopInfo build(Flow finalFlow) {
-      return new HopInfo(
-          _hop,
-          _initialFlow,
-          finalFlow,
-          _flowDisposition,
-          _returnFlow,
-          _firewallSessionTraceInfo,
-          _loopDetectedBreadcrumb,
-          _visitedBreadcrumb);
-    }
   }
 }
