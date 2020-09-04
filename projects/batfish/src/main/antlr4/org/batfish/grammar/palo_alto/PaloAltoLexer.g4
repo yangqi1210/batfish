@@ -693,6 +693,16 @@ INTERFACE
     'interface'
 ;
 
+INTERZONE
+:
+    'interzone'
+;
+
+INTRAZONE
+:
+    'intrazone'
+;
+
 IP
 :
     'ip'
@@ -801,6 +811,11 @@ LOG_COLLECTOR_GROUP
 LOG_END
 :
     'log-end'
+;
+
+LOG_SETTING
+:
+    'log-setting'
 ;
 
 LOG_SETTINGS
@@ -1018,6 +1033,11 @@ PANORAMA_SERVER
     'panorama-server'
 ;
 
+PARENT_DG
+:
+    'parent-dg'
+;
+
 PASSIVE
 :
     'passive'
@@ -1183,6 +1203,16 @@ RESOLVE
     'resolve'
 ;
 
+RESPONSE
+:
+    'response'
+;
+
+RESULT
+:
+    'result'
+;
+
 RETRANSMIT_INTERVAL
 :
     'retransmit-interval'
@@ -1216,6 +1246,11 @@ ROUTING_OPTIONS
 ROUTING_TABLE
 :
     'routing-table'
+;
+
+RULE_TYPE
+:
+    'rule-type'
 ;
 
 RULEBASE
@@ -1398,6 +1433,11 @@ TAP
     'tap'
 ;
 
+TARGET
+:
+    'target'
+;
+
 TCP
 :
     [Tt][Cc][Pp]
@@ -1491,6 +1531,11 @@ UNICAST
 UNITS
 :
     'units'
+;
+
+UNIVERSAL
+:
+    'universal'
 ;
 
 UP

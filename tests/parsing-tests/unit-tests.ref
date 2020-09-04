@@ -1097,7 +1097,7 @@
         "configs/foundry_interface" : "PASSED",
         "configs/foundry_misc" : "PASSED",
         "configs/foundry_vlan_group" : "PASSED",
-        "configs/foundry_vrf" : "UNSUPPORTED",
+        "configs/foundry_vrf" : "UNKNOWN",
         "configs/gh-2658-juniper-vrf-import-export.cfg" : "PASSED",
         "configs/host2" : "PASSED",
         "configs/if_tag_is" : "PASSED",
@@ -32084,8 +32084,20 @@
             "            NEWLINE:'\\n')))",
             "      (ro_distance",
             "        DISTANCE:'distance'",
-            "        value = DEC:'110'",
-            "        NEWLINE:'\\n')",
+            "        (ro_distance_distance",
+            "          value = DEC:'110'",
+            "          NEWLINE:'\\n'))",
+            "      (ro_distance",
+            "        DISTANCE:'distance'",
+            "        (ro_distance_ospf",
+            "          OSPF:'ospf'",
+            "          EXTERNAL:'external'",
+            "          ext = DEC:'77'",
+            "          INTER_AREA:'inter-area'",
+            "          inter = DEC:'78'",
+            "          INTRA_AREA:'intra-area'",
+            "          intra = DEC:'79'",
+            "          NEWLINE:'\\n'))",
             "      (ro_distribute_list",
             "        DISTRIBUTE_LIST:'distribute-list'",
             "        name = (variable_distribute_list",
@@ -52955,6 +52967,27 @@
             "        dst_mac = (xr_mac_specifier",
             "          ANY:'any')",
             "        NEWLINE:'\\n')))",
+            "  (statement",
+            "    (s_ipv4",
+            "      IPV4:'ipv4'",
+            "      (ipv4_access_list",
+            "        ACCESS_LIST:'access-list'",
+            "        name = (variable_aclname",
+            "          VARIABLE:'DENY_ALL')",
+            "        NEWLINE:'\\n'",
+            "        (extended_access_list_tail",
+            "          num = DEC:'5'",
+            "          ala = (access_list_action",
+            "            DENY:'deny')",
+            "          prot = (protocol",
+            "            IPV4:'ipv4')",
+            "          srcipr = (access_list_ip_range",
+            "            ANY:'any')",
+            "          dstipr = (access_list_ip_range",
+            "            ANY:'any')",
+            "          (extended_access_list_additional_feature",
+            "            ICMP_OFF:'icmp-off')",
+            "          NEWLINE:'\\n'))))",
             "  EOF:<EOF>)"
           ]
         },
@@ -76994,49 +77027,61 @@
             },
             {
               "Comment" : "This feature is not currently supported",
+              "Line" : 51,
+              "Parser_Context" : "[ro_distance_distance ro_distance s_router_ospf stanza cisco_configuration]",
+              "Text" : "110"
+            },
+            {
+              "Comment" : "This feature is not currently supported",
               "Line" : 52,
-              "Parser_Context" : "[ro_distribute_list s_router_ospf stanza cisco_configuration]",
-              "Text" : "distribute-list aclin in"
+              "Parser_Context" : "[ro_distance_ospf ro_distance s_router_ospf stanza cisco_configuration]",
+              "Text" : "ospf external 77 inter-area 78 intra-area 79"
             },
             {
               "Comment" : "This feature is not currently supported",
               "Line" : 53,
               "Parser_Context" : "[ro_distribute_list s_router_ospf stanza cisco_configuration]",
-              "Text" : "distribute-list aclin in ethernet0/0"
+              "Text" : "distribute-list aclin in"
             },
             {
               "Comment" : "This feature is not currently supported",
               "Line" : 54,
               "Parser_Context" : "[ro_distribute_list s_router_ospf stanza cisco_configuration]",
-              "Text" : "distribute-list aclout out"
+              "Text" : "distribute-list aclin in ethernet0/0"
             },
             {
               "Comment" : "This feature is not currently supported",
-              "Line" : 57,
+              "Line" : 55,
               "Parser_Context" : "[ro_distribute_list s_router_ospf stanza cisco_configuration]",
-              "Text" : "distribute-list route-map rmin in"
+              "Text" : "distribute-list aclout out"
             },
             {
               "Comment" : "This feature is not currently supported",
               "Line" : 58,
               "Parser_Context" : "[ro_distribute_list s_router_ospf stanza cisco_configuration]",
+              "Text" : "distribute-list route-map rmin in"
+            },
+            {
+              "Comment" : "This feature is not currently supported",
+              "Line" : 59,
+              "Parser_Context" : "[ro_distribute_list s_router_ospf stanza cisco_configuration]",
               "Text" : "distribute-list route-map rmout out"
             },
             {
               "Comment" : "This feature is not currently supported",
-              "Line" : 65,
+              "Line" : 66,
               "Parser_Context" : "[ro_maximum_paths s_router_ospf stanza cisco_configuration]",
               "Text" : "maximum-paths 32"
             },
             {
               "Comment" : "This feature is not currently supported",
-              "Line" : 81,
+              "Line" : 82,
               "Parser_Context" : "[ro_area_filterlist s_router_ospf stanza cisco_configuration]",
               "Text" : "area 0 filter-list prefix INFILTER in"
             },
             {
               "Comment" : "This feature is not currently supported",
-              "Line" : 82,
+              "Line" : 83,
               "Parser_Context" : "[ro_area_filterlist s_router_ospf stanza cisco_configuration]",
               "Text" : "area 0 filter-list prefix OUTFILTER out"
             }
@@ -83287,7 +83332,17 @@
             }
           }
         },
-        "configs/ios_xr_acl" : { },
+        "configs/ios_xr_acl" : {
+          "ipv4 access-list" : {
+            "DENY_ALL" : {
+              "definitionLines" : [
+                9,
+                10
+              ],
+              "numReferrers" : 0
+            }
+          }
+        },
         "configs/ios_xr_bgp" : { },
         "configs/ios_xr_bgp_neighbor_group" : {
           "bgp af-group" : {
@@ -89084,7 +89139,7 @@
                 12
               ],
               "router ospf distribute-list in" : [
-                53
+                54
               ]
             },
             "Ethernet1/0" : {
@@ -89101,12 +89156,12 @@
           "ipv4 prefix-list" : {
             "INFILTER" : {
               "ospf area filter-list" : [
-                81
+                82
               ]
             },
             "OUTFILTER" : {
               "ospf area filter-list" : [
-                82
+                83
               ]
             },
             "filterName" : {
@@ -89117,25 +89172,25 @@
             },
             "plin" : {
               "router ospf distribute-list prefix in" : [
-                55
+                56
               ]
             },
             "plout" : {
               "router ospf distribute-list prefix out" : [
-                56
+                57
               ]
             }
           },
           "ipv4/6 acl" : {
             "aclin" : {
               "router ospf distribute-list in" : [
-                52,
-                53
+                53,
+                54
               ]
             },
             "aclout" : {
               "router ospf distribute-list out" : [
-                54
+                55
               ]
             }
           },
@@ -89147,22 +89202,22 @@
             },
             "DIRECT_OSPF" : {
               "ospf redistribute connected route-map" : [
-                67
+                68
               ]
             },
             "eigrp-ospf-route-map" : {
               "ospf redistribute eigrp route-map" : [
-                68
+                69
               ]
             },
             "rmin" : {
               "router ospf distribute-list route-map in" : [
-                57
+                58
               ]
             },
             "rmout" : {
               "router ospf distribute-list route-map out" : [
-                58
+                59
               ]
             }
           }
@@ -94104,25 +94159,25 @@
           "ipv4 prefix-list" : {
             "plin" : {
               "router ospf distribute-list prefix in" : [
-                55
+                56
               ]
             },
             "plout" : {
               "router ospf distribute-list prefix out" : [
-                56
+                57
               ]
             }
           },
           "ipv4/6 acl" : {
             "aclin" : {
               "router ospf distribute-list in" : [
-                52,
-                53
+                53,
+                54
               ]
             },
             "aclout" : {
               "router ospf distribute-list out" : [
-                54
+                55
               ]
             }
           },
@@ -94134,22 +94189,22 @@
             },
             "DIRECT_OSPF" : {
               "ospf redistribute connected route-map" : [
-                67
+                68
               ]
             },
             "eigrp-ospf-route-map" : {
               "ospf redistribute eigrp route-map" : [
-                68
+                69
               ]
             },
             "rmin" : {
               "router ospf distribute-list route-map in" : [
-                57
+                58
               ]
             },
             "rmout" : {
               "router ospf distribute-list route-map out" : [
-                58
+                59
               ]
             }
           }
@@ -96301,7 +96356,7 @@
         "configs/foundry_interface" : "PASSED",
         "configs/foundry_misc" : "PASSED",
         "configs/foundry_vlan_group" : "PASSED",
-        "configs/foundry_vrf" : "UNSUPPORTED",
+        "configs/foundry_vrf" : "UNKNOWN",
         "configs/gh-2658-juniper-vrf-import-export.cfg" : "PASSED",
         "configs/host2" : "PASSED",
         "configs/if_tag_is" : "PASSED",

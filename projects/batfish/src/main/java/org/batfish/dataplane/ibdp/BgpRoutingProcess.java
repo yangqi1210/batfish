@@ -215,41 +215,56 @@ final class BgpRoutingProcess implements RoutingProcess<BgpTopology, BgpRoute<?,
         firstNonNull(_process.getTieBreaker(), BgpTieBreaker.ARRIVAL_ORDER);
     MultipathEquivalentAsPathMatchMode multiPathMatchMode =
         firstNonNull(_process.getMultipathEquivalentAsPathMatchMode(), EXACT_PATH);
+    boolean clusterListAsIgpCost = _process.getClusterListAsIgpCost();
     _ebgpv4Rib =
         new Bgpv4Rib(
             _mainRib,
             bestPathTieBreaker,
             _process.getMultipathEbgp() ? null : 1,
             multiPathMatchMode,
-            false);
+            false,
+            clusterListAsIgpCost);
     _ibgpv4Rib =
         new Bgpv4Rib(
             _mainRib,
             bestPathTieBreaker,
             _process.getMultipathIbgp() ? null : 1,
             multiPathMatchMode,
-            false);
+            false,
+            clusterListAsIgpCost);
     _bgpv4Rib =
         new Bgpv4Rib(
             _mainRib,
             bestPathTieBreaker,
             _process.getMultipathEbgp() || _process.getMultipathIbgp() ? null : 1,
             multiPathMatchMode,
-            false);
+            false,
+            clusterListAsIgpCost);
     _bgpv4DeltaBuilder = RibDelta.builder();
 
     _mainRibRoutesToProcess = new HashMap<>(1);
 
-    _ebgpv4StagingRib = new Bgpv4Rib(_mainRib, bestPathTieBreaker, null, multiPathMatchMode, false);
-    _ibgpv4StagingRib = new Bgpv4Rib(_mainRib, bestPathTieBreaker, null, multiPathMatchMode, false);
+    _ebgpv4StagingRib =
+        new Bgpv4Rib(
+            _mainRib, bestPathTieBreaker, null, multiPathMatchMode, false, clusterListAsIgpCost);
+    _ibgpv4StagingRib =
+        new Bgpv4Rib(
+            _mainRib, bestPathTieBreaker, null, multiPathMatchMode, false, clusterListAsIgpCost);
     // EVPN Ribs
-    _ebgpType3EvpnRib = new EvpnRib<>(_mainRib, bestPathTieBreaker, null, multiPathMatchMode);
-    _ibgpType3EvpnRib = new EvpnRib<>(_mainRib, bestPathTieBreaker, null, multiPathMatchMode);
-    _evpnType3Rib = new EvpnRib<>(_mainRib, bestPathTieBreaker, null, multiPathMatchMode);
-    _ebgpType5EvpnRib = new EvpnRib<>(_mainRib, bestPathTieBreaker, null, multiPathMatchMode);
-    _ibgpType5EvpnRib = new EvpnRib<>(_mainRib, bestPathTieBreaker, null, multiPathMatchMode);
-    _evpnType5Rib = new EvpnRib<>(_mainRib, bestPathTieBreaker, null, multiPathMatchMode);
-    _evpnRib = new EvpnRib<>(_mainRib, bestPathTieBreaker, null, multiPathMatchMode);
+    _ebgpType3EvpnRib =
+        new EvpnRib<>(_mainRib, bestPathTieBreaker, null, multiPathMatchMode, clusterListAsIgpCost);
+    _ibgpType3EvpnRib =
+        new EvpnRib<>(_mainRib, bestPathTieBreaker, null, multiPathMatchMode, clusterListAsIgpCost);
+    _evpnType3Rib =
+        new EvpnRib<>(_mainRib, bestPathTieBreaker, null, multiPathMatchMode, clusterListAsIgpCost);
+    _ebgpType5EvpnRib =
+        new EvpnRib<>(_mainRib, bestPathTieBreaker, null, multiPathMatchMode, clusterListAsIgpCost);
+    _ibgpType5EvpnRib =
+        new EvpnRib<>(_mainRib, bestPathTieBreaker, null, multiPathMatchMode, clusterListAsIgpCost);
+    _evpnType5Rib =
+        new EvpnRib<>(_mainRib, bestPathTieBreaker, null, multiPathMatchMode, clusterListAsIgpCost);
+    _evpnRib =
+        new EvpnRib<>(_mainRib, bestPathTieBreaker, null, multiPathMatchMode, clusterListAsIgpCost);
     _evpnInitializationDelta = RibDelta.empty();
     _rtVrfMapping = computeRouteTargetToVrfMap(getAllPeerConfigs(_process));
     _type5RoutesToSendForEveryone = BgpDelta.empty();
@@ -379,8 +394,13 @@ final class BgpRoutingProcess implements RoutingProcess<BgpTopology, BgpRoute<?,
         firstNonNull(_process.getTieBreaker(), BgpTieBreaker.ARRIVAL_ORDER);
     MultipathEquivalentAsPathMatchMode multiPathMatchMode =
         firstNonNull(_process.getMultipathEquivalentAsPathMatchMode(), EXACT_PATH);
-    _ebgpv4StagingRib = new Bgpv4Rib(_mainRib, bestPathTieBreaker, null, multiPathMatchMode, false);
-    _ibgpv4StagingRib = new Bgpv4Rib(_mainRib, bestPathTieBreaker, null, multiPathMatchMode, false);
+    boolean clusterListAsIgpCost = _process.getClusterListAsIgpCost();
+    _ebgpv4StagingRib =
+        new Bgpv4Rib(
+            _mainRib, bestPathTieBreaker, null, multiPathMatchMode, false, clusterListAsIgpCost);
+    _ibgpv4StagingRib =
+        new Bgpv4Rib(
+            _mainRib, bestPathTieBreaker, null, multiPathMatchMode, false, clusterListAsIgpCost);
 
     // TODO: optimize, don't recreate the map each iteration
     NetworkConfigurations nc =
@@ -781,6 +801,7 @@ final class BgpRoutingProcess implements RoutingProcess<BgpTopology, BgpRoute<?,
     BgpPeerConfig remoteConfig = nc.getBgpPeerConfig(remoteConfigId);
     assert ourConfig != null; // Invariant of the edge existing
     assert remoteConfig != null; // Invariant of the edge existing
+    BgpRoutingProcess remoteBgpRoutingProcess = getNeighborBgpProcess(remoteConfigId, allNodes);
     return Stream.concat(evpnDelta._ebgpDelta.getActions(), evpnDelta._ibgpDelta.getActions())
         .map(
             // TODO: take into account address-family session settings, such as add-path or
@@ -793,7 +814,7 @@ final class BgpRoutingProcess implements RoutingProcess<BgpTopology, BgpRoute<?,
                         remoteConfigId,
                         ourConfig,
                         remoteConfig,
-                        allNodes,
+                        remoteBgpRoutingProcess,
                         session,
                         Type.EVPN)
                     .map(
@@ -816,7 +837,7 @@ final class BgpRoutingProcess implements RoutingProcess<BgpTopology, BgpRoute<?,
    * @param exportCandidate a route to try and export
    * @param ourConfig {@link BgpPeerConfig} that sends the route
    * @param remoteConfig {@link BgpPeerConfig} that will be receiving the route
-   * @param allNodes all nodes in the network
+   * @param remoteBgpRoutingProcess {@link BgpRoutingProcess} that will be recieving the route
    * @param sessionProperties {@link BgpSessionProperties} representing the <em>incoming</em> edge:
    *     i.e. the edge from {@code remoteConfig} to {@code ourConfig}
    * @param afType {@link AddressFamily.Type} for which the transformation should occur
@@ -830,7 +851,7 @@ final class BgpRoutingProcess implements RoutingProcess<BgpTopology, BgpRoute<?,
           BgpPeerConfigId remoteConfigId,
           BgpPeerConfig ourConfig,
           BgpPeerConfig remoteConfig,
-          Map<String, Node> allNodes,
+          BgpRoutingProcess remoteBgpRoutingProcess,
           BgpSessionProperties sessionProperties,
           AddressFamily.Type afType) {
 
@@ -852,7 +873,7 @@ final class BgpRoutingProcess implements RoutingProcess<BgpTopology, BgpRoute<?,
             remoteConfig,
             sessionProperties,
             _process,
-            getNeighborBgpProcess(remoteConfigId, allNodes)._process,
+            remoteBgpRoutingProcess._process,
             exportCandidate,
             addressFamily.getType());
 

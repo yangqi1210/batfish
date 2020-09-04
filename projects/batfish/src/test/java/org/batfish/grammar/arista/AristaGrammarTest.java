@@ -605,9 +605,10 @@ public class AristaGrammarTest {
   @Test
   public void testAristaBanner() throws IOException {
     Configuration c = parseConfig("eos_banner");
-    assertThat(
-        c.getVendorFamily().getCisco().getBanners().get("login"),
-        equalTo("Some text\nEOF not alone\n"));
+    Map<String, String> banners = c.getVendorFamily().getCisco().getBanners();
+    assertThat(banners.get("login"), equalTo("Some text\nEOF not alone\n"));
+    assertThat(banners.get("exec"), equalTo("here is an exec banner\n"));
+    assertThat(banners.get("motd"), equalTo("A pithy quote.\n"));
   }
 
   @Test
@@ -1738,6 +1739,18 @@ public class AristaGrammarTest {
   @Test
   public void testParseCvx() {
     parseVendorConfig("arista_cvx");
+    // don't crash.
+  }
+
+  @Test
+  public void testNatParse() {
+    parseVendorConfig("arista_nat");
+    // don't crash.
+  }
+
+  @Test
+  public void testNatConvert() {
+    parseConfig("arista_nat");
     // don't crash.
   }
 
